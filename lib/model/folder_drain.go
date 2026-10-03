@@ -53,6 +53,39 @@ func newDrainFolder(model *model, ignores *ignore.Matcher, cfg config.FolderConf
 	return f
 }
 
+// pull does the send only pull, then accepts other devices' changes to files
+// we have drained without downloading them. We gave those files away, so a
+// newer version is recorded as drained too, and a deletion is accepted.
+func (f *drainFolder) pull(ctx context.Context) (bool, error) {
+	if ok, err := f.sendOnlyFolder.pull(ctx); !ok || err != nil {
+		return ok, err
+	}
+
+	batch := NewFileInfoBatch(func(files []protocol.FileInfo) error {
+		return f.updateLocalsFromPulling(files)
+	})
+	for need, err := range itererr.Zip(f.db.AllNeededGlobalFiles(f.folderID, protocol.LocalDeviceID, config.PullOrderAlphabetic, 0, 0)) {
+		if err != nil {
+			return false, err
+		}
+		if err := batch.FlushIfFull(); err != nil {
+			return false, err
+		}
+		cur, ok, err := f.db.GetDeviceFile(f.folderID, protocol.LocalDeviceID, need.Name)
+		if err != nil {
+			return false, err
+		}
+		if !ok || !cur.IsDrained() {
+			continue
+		}
+		if !need.IsDeleted() {
+			need.SetDrained()
+		}
+		batch.Append(need)
+	}
+	return true, batch.Flush()
+}
+
 // protectedNames returns the folder relative names of the protected files
 // (our own config, keys and database) that live inside the folder.
 func protectedNames(cfg config.FolderConfiguration, protectedFiles []string) map[string]struct{} {

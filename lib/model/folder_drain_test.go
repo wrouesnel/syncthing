@@ -290,6 +290,45 @@ func TestDrainedFileSurvivesRescanAndCanBeRestored(t *testing.T) {
 	}
 }
 
+func TestDrainAcceptsRemoteChangesToDrainedFiles(t *testing.T) {
+	m, f := setupDrainFolder(t, nil)
+	writeDrainFiles(t, m, f, map[string]int{"edited": 100, "deleted": 100}, "edited", "deleted")
+	conn := addFakeConn(m, device1, "dr")
+	announce(t, m, conn, "edited", "deleted")
+	runPull(t, f)
+
+	// device1 edits one drained file and deletes the other.
+	edited, _ := m.testCurrentFolderFile("dr", "edited")
+	edited.LocalFlags = 0
+	edited.Version = edited.Version.Update(device1.Short())
+	edited.Size = 999
+	edited.Blocks = []protocol.BlockInfo{{Hash: bytes.Repeat([]byte{2}, 32), Size: 999}}
+	edited.BlocksHash = protocol.BlocksHash(edited.Blocks)
+	deleted, _ := m.testCurrentFolderFile("dr", "deleted")
+	deleted.LocalFlags = 0
+	deleted.SetDeleted(device1.Short())
+	must(t, m.IndexUpdate(conn, &protocol.IndexUpdate{Folder: "dr", Files: []protocol.FileInfo{
+		prepareFileInfoForIndex(edited), prepareFileInfoForIndex(deleted),
+	}}))
+	waitFor(t, func() bool {
+		return mustV(m.NeedSize("dr", protocol.LocalDeviceID)).TotalItems() == 2
+	})
+	runPull(t, f)
+
+	if need := mustV(m.NeedSize("dr", protocol.LocalDeviceID)); need.TotalItems() != 0 {
+		t.Errorf("remote changes to drained files should not leave the folder out of sync: %+v", need)
+	}
+	if fi, _ := m.testCurrentFolderFile("dr", "edited"); !fi.IsDrained() || !fi.Version.Equal(edited.Version) {
+		t.Errorf("edited file should be drained at the new version: %v", fi)
+	}
+	if fi, _ := m.testCurrentFolderFile("dr", "deleted"); !fi.IsDeleted() {
+		t.Errorf("deleted file should be accepted as deleted: %v", fi)
+	}
+	if onDisk(t, f, "edited") || onDisk(t, f, "deleted") {
+		t.Error("nothing should be downloaded into a drain folder")
+	}
+}
+
 func TestDrainSkipsFilesChangedSinceScan(t *testing.T) {
 	m, f := setupDrainFolder(t, nil)
 	writeDrainFiles(t, m, f, map[string]int{"a": 100}, "a")
