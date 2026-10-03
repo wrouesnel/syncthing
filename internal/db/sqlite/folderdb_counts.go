@@ -24,7 +24,7 @@ func (s *folderDB) CountLocal(device protocol.DeviceID) (db.Counts, error) {
 	if err := s.stmt(`
 		SELECT s.type, s.count, s.size, s.local_flags, s.deleted FROM counts s
 		INNER JOIN devices d ON d.idx = s.device_idx
-		WHERE d.device_id = ? AND s.local_flags & {{.FlagLocalIgnored}} = 0
+		WHERE d.device_id = ? AND s.local_flags & {{.FlagLocalIgnored}} = 0 AND s.local_flags & {{.FlagLocalDrained}} = 0
 	`).Select(&res, device.String()); err != nil {
 		return db.Counts{}, wrap(err)
 	}
@@ -43,6 +43,20 @@ func (s *folderDB) CountGlobal() (db.Counts, error) {
 	err := s.stmt(`
 		SELECT s.type, s.count, s.size, s.local_flags, s.deleted FROM counts s
 		WHERE s.local_flags & {{.FlagLocalGlobal}} != 0 AND s.local_flags & {{.LocalInvalidFlags}} = 0
+	`).Select(&res)
+	if err != nil {
+		return db.Counts{}, wrap(err)
+	}
+	return summarizeCounts(res), nil
+}
+
+// CountDrained counts the local items removed from disk by a drain folder.
+// Drained items carry no content, so only the item counts are meaningful.
+func (s *folderDB) CountDrained() (db.Counts, error) {
+	var res []countsRow
+	err := s.stmt(`
+		SELECT s.type, s.count, s.size, s.local_flags, s.deleted FROM counts s
+		WHERE s.device_idx = {{.LocalDeviceIdx}} AND s.local_flags & {{.FlagLocalDrained}} != 0
 	`).Select(&res)
 	if err != nil {
 		return db.Counts{}, wrap(err)

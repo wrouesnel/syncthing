@@ -432,12 +432,12 @@ func (f *folder) pull(ctx context.Context) (success bool, err error) {
 		f.errorsMut.Lock()
 		f.pullErrors = nil
 		f.errorsMut.Unlock()
-		return true, nil
+		return true, f.drainIfDrainer(ctx)
 	}
 
-	// Send only folder doesn't do any io, it only checks for out-of-sync
-	// items that differ in metadata and updates those.
-	if f.Type != config.FolderTypeSendOnly {
+	// Send only and drain folders don't do any io, they only check for
+	// out-of-sync items that differ in metadata and update those.
+	if f.Type != config.FolderTypeSendOnly && f.Type != config.FolderTypeDrain {
 		f.setState(FolderSyncWaiting)
 
 		if err := f.ioLimiter.TakeWithContext(ctx, 1); err != nil {
@@ -465,7 +465,7 @@ func (f *folder) pull(ctx context.Context) (success bool, err error) {
 	success, err = f.puller.pull(ctx)
 
 	if success && err == nil {
-		return true, nil
+		return true, f.drainIfDrainer(ctx)
 	}
 
 	// Pulling failed, try again later.
@@ -474,6 +474,16 @@ func (f *folder) pull(ctx context.Context) (success bool, err error) {
 	f.pullFailTimer.Reset(delay)
 
 	return false, err
+}
+
+// drainIfDrainer runs the drain step for folder types that have one. It
+// follows a pull because pulls are scheduled exactly when the local size or
+// other devices' indexes change.
+func (f *folder) drainIfDrainer(ctx context.Context) error {
+	if d, ok := f.puller.(drainer); ok {
+		return d.drain(ctx)
+	}
+	return nil
 }
 
 func (f *folder) scanSubdirs(ctx context.Context, subDirs []string) error {
@@ -791,6 +801,10 @@ outer:
 			}
 
 			switch ignored := f.ignores.Match(fi.Name).IsIgnored(); {
+			case fi.IsDrained():
+				// Drained files are gone from disk on purpose. A file put
+				// back is picked up as new by the walk above.
+				continue
 			case fi.IsIgnored() && ignored:
 				continue
 			case !fi.IsIgnored() && ignored:

@@ -55,6 +55,7 @@ type DB interface {
 	// Single files
 	GetDeviceFile(folder string, device protocol.DeviceID, file string) (protocol.FileInfo, bool, error)
 	GetGlobalAvailability(folder, file string) ([]protocol.DeviceID, error)
+	GetLocalVersionAvailability(folder, file string) ([]protocol.DeviceID, error)
 	GetGlobalFile(folder string, file string) (protocol.FileInfo, bool, error)
 
 	// File iterators
@@ -70,6 +71,7 @@ type DB interface {
 	AllLocalFilesBySequence(folder string, device protocol.DeviceID, startSeq int64, limit int) (iter.Seq[protocol.FileInfo], func() error)
 	AllLocalFilesWithPrefix(folder string, device protocol.DeviceID, prefix string) (iter.Seq[protocol.FileInfo], func() error)
 	AllLocalFilesWithBlocksHash(folder string, h []byte) (iter.Seq[FileMetadata], func() error)
+	AllLocalDrainCandidates(folder string, order config.DrainOrder) (iter.Seq[FileMetadata], func() error)
 	AllNeededGlobalFiles(folder string, device protocol.DeviceID, order config.PullOrder, limit, offset int) (iter.Seq[protocol.FileInfo], func() error)
 	AllLocalBlocksWithHash(folder string, hash []byte) (iter.Seq[BlockMapEntry], func() error)
 
@@ -95,6 +97,7 @@ type DB interface {
 	CountLocal(folder string, device protocol.DeviceID) (Counts, error)
 	CountNeed(folder string, device protocol.DeviceID) (Counts, error)
 	CountReceiveOnlyChanged(folder string) (Counts, error)
+	CountDrained(folder string) (Counts, error)
 
 	// Index IDs
 	DropAllIndexIDs() error

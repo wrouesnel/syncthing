@@ -74,6 +74,42 @@ func (s *folderDB) GetGlobalAvailability(file string) ([]protocol.DeviceID, erro
 	return devs, nil
 }
 
+// GetLocalVersionAvailability returns the remote devices that announce
+// exactly the local device's version of the file, as a valid, non-deleted
+// entry. Unlike GetGlobalAvailability it ignores invalid remote entries and
+// compares against our version rather than the global one.
+func (s *folderDB) GetLocalVersionAvailability(file string) ([]protocol.DeviceID, error) {
+	file = osutil.NormalizedFilename(file)
+
+	var devStrs []string
+	err := s.stmt(`
+		SELECT d.device_id FROM files f
+		INNER JOIN devices d ON d.idx = f.device_idx
+		INNER JOIN files l ON l.name_idx = f.name_idx AND l.version_idx = f.version_idx
+		INNER JOIN file_names n ON f.name_idx = n.idx
+		WHERE n.name = ? AND l.device_idx = {{.LocalDeviceIdx}} AND f.device_idx != {{.LocalDeviceIdx}}
+			AND NOT f.deleted AND f.local_flags & {{.LocalInvalidFlags}} = 0
+		ORDER BY d.device_id
+	`).Select(&devStrs, file)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, wrap(err)
+	}
+
+	devs := make([]protocol.DeviceID, 0, len(devStrs))
+	for _, s := range devStrs {
+		d, err := protocol.DeviceIDFromString(s)
+		if err != nil {
+			return nil, wrap(err)
+		}
+		devs = append(devs, d)
+	}
+
+	return devs, nil
+}
+
 func (s *folderDB) AllGlobalFiles() (iter.Seq[db.FileMetadata], func() error) {
 	it, errFn := iterStructs[db.FileMetadata](s.stmt(`
 		SELECT f.sequence, n.name, f.type, f.modified as modnanos, f.size, f.deleted, f.local_flags as localflags FROM files f

@@ -31,16 +31,17 @@ const (
 	FlagLocalGlobal        FlagLocal = 1 << 4 // 16: This is the global file version
 	FlagLocalNeeded        FlagLocal = 1 << 5 // 32: We need this file
 	FlagLocalRemoteInvalid FlagLocal = 1 << 6 // 64: The remote marked this as invalid
+	FlagLocalDrained       FlagLocal = 1 << 7 // 128: Removed from disk by a drain folder after being replicated elsewhere
 
 	// Flags that should result in the Invalid bit on outgoing updates (or had it on ingoing ones)
-	LocalInvalidFlags = FlagLocalUnsupported | FlagLocalIgnored | FlagLocalMustRescan | FlagLocalReceiveOnly | FlagLocalRemoteInvalid
+	LocalInvalidFlags = FlagLocalUnsupported | FlagLocalIgnored | FlagLocalMustRescan | FlagLocalReceiveOnly | FlagLocalRemoteInvalid | FlagLocalDrained
 
 	// Flags that should result in a file being in conflict with its
 	// successor, due to us not having an up to date picture of its state on
 	// disk.
 	LocalConflictFlags = FlagLocalUnsupported | FlagLocalIgnored | FlagLocalReceiveOnly
 
-	LocalAllFlags = FlagLocalUnsupported | FlagLocalIgnored | FlagLocalMustRescan | FlagLocalReceiveOnly | FlagLocalGlobal | FlagLocalNeeded | FlagLocalRemoteInvalid
+	LocalAllFlags = FlagLocalUnsupported | FlagLocalIgnored | FlagLocalMustRescan | FlagLocalReceiveOnly | FlagLocalGlobal | FlagLocalNeeded | FlagLocalRemoteInvalid | FlagLocalDrained
 )
 
 // localFlagBitNames maps flag values to characters which can be used to
@@ -53,6 +54,7 @@ var localFlagBitNames = map[FlagLocal]string{
 	FlagLocalGlobal:        "G",
 	FlagLocalNeeded:        "n",
 	FlagLocalRemoteInvalid: "v",
+	FlagLocalDrained:       "d",
 }
 
 func (f FlagLocal) IsInvalid() bool {
@@ -371,6 +373,10 @@ func (f FileInfo) IsReceiveOnlyChanged() bool {
 	return f.LocalFlags&FlagLocalReceiveOnly != 0
 }
 
+func (f FileInfo) IsDrained() bool {
+	return f.LocalFlags&FlagLocalDrained != 0
+}
+
 func (f FileInfo) IsDirectory() bool {
 	return f.Type == FileInfoTypeDirectory
 }
@@ -582,6 +588,16 @@ func (f *FileInfo) SetMustRescan() {
 
 func (f *FileInfo) SetIgnored() {
 	f.setLocalFlags(FlagLocalIgnored)
+}
+
+// SetDrained marks the file as removed from disk by a drain folder. The
+// version is kept, so the file is neither needed locally nor announced as
+// deleted; other devices see it as invalid and keep their copies. The size
+// is kept for reporting, but the blocks are gone.
+func (f *FileInfo) SetDrained() {
+	f.LocalFlags = FlagLocalDrained
+	f.Blocks = nil
+	f.BlocksHash = nil
 }
 
 func (f *FileInfo) SetUnsupported() {

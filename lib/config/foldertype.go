@@ -15,6 +15,12 @@ const (
 	FolderTypeSendOnly         = FolderType(protocol.FolderTypeSendOnly)
 	FolderTypeReceiveOnly      = FolderType(protocol.FolderTypeReceiveOnly)
 	FolderTypeReceiveEncrypted = FolderType(protocol.FolderTypeReceiveEncrypted)
+
+	// FolderTypeDrain is a local-only folder type and is never sent to
+	// other devices. It behaves like send only, but removes local files
+	// once enough other devices hold them. The value is kept well away from
+	// the protocol folder types so it can't collide with future ones.
+	FolderTypeDrain = FolderType(100)
 )
 
 func (t FolderType) String() string {
@@ -27,6 +33,8 @@ func (t FolderType) String() string {
 		return "receiveonly"
 	case FolderTypeReceiveEncrypted:
 		return "receiveencrypted"
+	case FolderTypeDrain:
+		return "drain"
 	default:
 		return "unknown"
 	}
@@ -46,6 +54,8 @@ func (t *FolderType) UnmarshalText(bs []byte) error {
 		*t = FolderTypeReceiveOnly
 	case "receiveencrypted":
 		*t = FolderTypeReceiveEncrypted
+	case "drain":
+		*t = FolderTypeDrain
 	default:
 		*t = FolderTypeSendReceive
 	}

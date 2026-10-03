@@ -210,6 +210,19 @@ type Model struct {
 	downloadProgressReturnsOnCall map[int]struct {
 		result1 error
 	}
+	DrainedSizeStub        func(string) (db.Counts, error)
+	drainedSizeMutex       sync.RWMutex
+	drainedSizeArgsForCall []struct {
+		arg1 string
+	}
+	drainedSizeReturns struct {
+		result1 db.Counts
+		result2 error
+	}
+	drainedSizeReturnsOnCall map[int]struct {
+		result1 db.Counts
+		result2 error
+	}
 	FolderErrorsStub        func(string) ([]model.FileError, error)
 	folderErrorsMutex       sync.RWMutex
 	folderErrorsArgsForCall []struct {
@@ -1620,6 +1633,70 @@ func (fake *Model) DownloadProgressReturnsOnCall(i int, result1 error) {
 	fake.downloadProgressReturnsOnCall[i] = struct {
 		result1 error
 	}{result1}
+}
+
+func (fake *Model) DrainedSize(arg1 string) (db.Counts, error) {
+	fake.drainedSizeMutex.Lock()
+	ret, specificReturn := fake.drainedSizeReturnsOnCall[len(fake.drainedSizeArgsForCall)]
+	fake.drainedSizeArgsForCall = append(fake.drainedSizeArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.DrainedSizeStub
+	fakeReturns := fake.drainedSizeReturns
+	fake.recordInvocation("DrainedSize", []interface{}{arg1})
+	fake.drainedSizeMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *Model) DrainedSizeCallCount() int {
+	fake.drainedSizeMutex.RLock()
+	defer fake.drainedSizeMutex.RUnlock()
+	return len(fake.drainedSizeArgsForCall)
+}
+
+func (fake *Model) DrainedSizeCalls(stub func(string) (db.Counts, error)) {
+	fake.drainedSizeMutex.Lock()
+	defer fake.drainedSizeMutex.Unlock()
+	fake.DrainedSizeStub = stub
+}
+
+func (fake *Model) DrainedSizeArgsForCall(i int) string {
+	fake.drainedSizeMutex.RLock()
+	defer fake.drainedSizeMutex.RUnlock()
+	argsForCall := fake.drainedSizeArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *Model) DrainedSizeReturns(result1 db.Counts, result2 error) {
+	fake.drainedSizeMutex.Lock()
+	defer fake.drainedSizeMutex.Unlock()
+	fake.DrainedSizeStub = nil
+	fake.drainedSizeReturns = struct {
+		result1 db.Counts
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *Model) DrainedSizeReturnsOnCall(i int, result1 db.Counts, result2 error) {
+	fake.drainedSizeMutex.Lock()
+	defer fake.drainedSizeMutex.Unlock()
+	fake.DrainedSizeStub = nil
+	if fake.drainedSizeReturnsOnCall == nil {
+		fake.drainedSizeReturnsOnCall = make(map[int]struct {
+			result1 db.Counts
+			result2 error
+		})
+	}
+	fake.drainedSizeReturnsOnCall[i] = struct {
+		result1 db.Counts
+		result2 error
+	}{result1, result2}
 }
 
 func (fake *Model) FolderErrors(arg1 string) ([]model.FileError, error) {

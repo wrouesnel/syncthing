@@ -145,6 +145,17 @@ func (s *DB) GetGlobalAvailability(folder, file string) ([]protocol.DeviceID, er
 	return fdb.GetGlobalAvailability(file)
 }
 
+func (s *DB) GetLocalVersionAvailability(folder, file string) ([]protocol.DeviceID, error) {
+	fdb, err := s.getFolderDB(folder, false)
+	if errors.Is(err, errNoSuchFolder) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return fdb.GetLocalVersionAvailability(file)
+}
+
 func (s *DB) GetGlobalFile(folder string, file string) (protocol.FileInfo, bool, error) {
 	fdb, err := s.getFolderDB(folder, false)
 	if errors.Is(err, errNoSuchFolder) {
@@ -220,6 +231,17 @@ func (s *DB) AllLocalFilesWithPrefix(folder string, device protocol.DeviceID, pr
 		return func(yield func(protocol.FileInfo) bool) {}, func() error { return err }
 	}
 	return fdb.AllLocalFilesWithPrefix(device, prefix)
+}
+
+func (s *DB) AllLocalDrainCandidates(folder string, order config.DrainOrder) (iter.Seq[db.FileMetadata], func() error) {
+	fdb, err := s.getFolderDB(folder, false)
+	if errors.Is(err, errNoSuchFolder) {
+		return func(yield func(db.FileMetadata) bool) {}, func() error { return nil }
+	}
+	if err != nil {
+		return func(yield func(db.FileMetadata) bool) {}, func() error { return err }
+	}
+	return fdb.AllLocalDrainCandidates(order)
 }
 
 func (s *DB) AllLocalFilesWithBlocksHash(folder string, h []byte) (iter.Seq[db.FileMetadata], func() error) {
@@ -330,6 +352,17 @@ func (s *DB) CountNeed(folder string, device protocol.DeviceID) (db.Counts, erro
 		return db.Counts{}, err
 	}
 	return fdb.CountNeed(device)
+}
+
+func (s *DB) CountDrained(folder string) (db.Counts, error) {
+	fdb, err := s.getFolderDB(folder, false)
+	if errors.Is(err, errNoSuchFolder) {
+		return db.Counts{}, nil
+	}
+	if err != nil {
+		return db.Counts{}, err
+	}
+	return fdb.CountDrained()
 }
 
 func (s *DB) CountReceiveOnlyChanged(folder string) (db.Counts, error) {

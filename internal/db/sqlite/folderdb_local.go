@@ -19,6 +19,7 @@ import (
 
 	"github.com/syncthing/syncthing/internal/db"
 	"github.com/syncthing/syncthing/internal/itererr"
+	"github.com/syncthing/syncthing/lib/config"
 	"github.com/syncthing/syncthing/lib/osutil"
 	"github.com/syncthing/syncthing/lib/protocol"
 )
@@ -92,6 +93,36 @@ func (s *folderDB) AllLocalFilesWithPrefix(device protocol.DeviceID, prefix stri
 		WHERE d.device_id = ? AND n.name >= ? AND n.name < ?
 	`, device.String(), prefix, end))
 	return itererr.Map(it, errFn, indirectFI.FileInfo)
+}
+
+// AllLocalDrainCandidates returns the local regular files that are present
+// on disk (not deleted, not invalid or drained), in the given order.
+func (s *folderDB) AllLocalDrainCandidates(order config.DrainOrder) (iter.Seq[db.FileMetadata], func() error) {
+	var orderBy string
+	switch order {
+	case config.DrainOrderRandom:
+		orderBy = "ORDER BY RANDOM()"
+	case config.DrainOrderAlphabetic:
+		orderBy = "ORDER BY n.name ASC"
+	case config.DrainOrderSmallestFirst:
+		orderBy = "ORDER BY f.size ASC"
+	case config.DrainOrderLargestFirst:
+		orderBy = "ORDER BY f.size DESC"
+	case config.DrainOrderNewestFirst:
+		orderBy = "ORDER BY f.modified DESC"
+	default:
+		orderBy = "ORDER BY f.modified ASC"
+	}
+
+	it, errFn := iterStructs[db.FileMetadata](s.stmt(`
+		SELECT f.sequence, n.name, f.type, f.modified as modnanos, f.size, f.deleted, f.local_flags as localflags FROM files f
+		INNER JOIN file_names n ON f.name_idx = n.idx
+		WHERE f.device_idx = {{.LocalDeviceIdx}} AND f.type = ? AND NOT f.deleted AND f.local_flags & {{.LocalInvalidFlags}} = 0
+	` + orderBy).Queryx(protocol.FileInfoTypeFile))
+	return itererr.Map(it, errFn, func(m db.FileMetadata) (db.FileMetadata, error) {
+		m.Name = osutil.NativeFilename(m.Name)
+		return m, nil
+	})
 }
 
 func (s *folderDB) AllLocalFilesWithBlocksHash(h []byte) (iter.Seq[db.FileMetadata], func() error) {

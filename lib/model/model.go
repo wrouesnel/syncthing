@@ -102,6 +102,7 @@ type Model interface {
 	GlobalSize(folder string) (db.Counts, error)
 	NeedSize(folder string, device protocol.DeviceID) (db.Counts, error)
 	ReceiveOnlySize(folder string) (db.Counts, error)
+	DrainedSize(folder string) (db.Counts, error)
 	Sequence(folder string, device protocol.DeviceID) (int64, error)
 	AllGlobalFiles(folder string) (iter.Seq[db.FileMetadata], func() error)
 	RemoteSequences(folder string) (map[protocol.DeviceID]int64, error)
@@ -974,6 +975,10 @@ func (m *model) NeedSize(folder string, device protocol.DeviceID) (db.Counts, er
 
 func (m *model) ReceiveOnlySize(folder string) (db.Counts, error) {
 	return m.sdb.CountReceiveOnlyChanged(folder)
+}
+
+func (m *model) DrainedSize(folder string) (db.Counts, error) {
+	return m.sdb.CountDrained(folder)
 }
 
 func (m *model) Sequence(folder string, device protocol.DeviceID) (int64, error) {

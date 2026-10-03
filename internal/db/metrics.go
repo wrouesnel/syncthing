@@ -103,6 +103,21 @@ func (m metricsDB) GetGlobalAvailability(folder, file string) ([]protocol.Device
 	return m.DB.GetGlobalAvailability(folder, file)
 }
 
+func (m metricsDB) GetLocalVersionAvailability(folder, file string) ([]protocol.DeviceID, error) {
+	defer m.account(folder, "GetLocalVersionAvailability")()
+	return m.DB.GetLocalVersionAvailability(folder, file)
+}
+
+func (m metricsDB) AllLocalDrainCandidates(folder string, order config.DrainOrder) (iter.Seq[FileMetadata], func() error) {
+	defer m.account(folder, "AllLocalDrainCandidates")()
+	return m.DB.AllLocalDrainCandidates(folder, order)
+}
+
+func (m metricsDB) CountDrained(folder string) (Counts, error) {
+	defer m.account(folder, "CountDrained")()
+	return m.DB.CountDrained(folder)
+}
+
 func (m metricsDB) AllLocalBlocksWithHash(folder string, hash []byte) (iter.Seq[BlockMapEntry], func() error) {
 	defer m.account("-", "AllLocalBlocksWithHash")()
 	return m.DB.AllLocalBlocksWithHash(folder, hash)
