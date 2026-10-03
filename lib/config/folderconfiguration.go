@@ -88,8 +88,8 @@ type FolderConfiguration struct {
 	SendXattrs              bool                        `json:"sendXattrs" xml:"sendXattrs"`
 	BlockIndexing           bool                        `json:"blockIndexing" xml:"blockIndexing" default:"true"`
 	XattrFilter             XattrFilter                 `json:"xattrFilter" xml:"xattrFilter"`
-	DrainHighWater          Size                        `json:"drainHighWater" xml:"drainHighWater" default:"0"`
-	DrainLowWater           Size                        `json:"drainLowWater" xml:"drainLowWater" default:"0"`
+	DrainHighWater          Size                        `json:"drainHighWater" xml:"drainHighWater" default:"0 GB"`
+	DrainLowWater           Size                        `json:"drainLowWater" xml:"drainLowWater" default:"0 GB"`
 	DrainOrder              DrainOrder                  `json:"drainOrder" xml:"drainOrder" default:"oldestFirst"`
 	DrainSeedLevel          int                         `json:"drainSeedLevel" xml:"drainSeedLevel" default:"1"`
 	// Legacy deprecated

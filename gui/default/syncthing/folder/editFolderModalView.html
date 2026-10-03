@@ -274,10 +274,12 @@
               <select class="form-control" ng-change="setDefaultsForFolderType()" ng-model="currentFolder.type" ng-disabled="editingFolderExisting() && currentFolder.type == 'receiveencrypted'">
                 <option value="sendreceive" translate>Send &amp; Receive</option>
                 <option value="sendonly" translate>Send Only</option>
+                <option value="drain" translate>Drain</option>
                 <option value="receiveonly" translate>Receive Only</option>
                 <option value="receiveencrypted" ng-disabled="editingFolderExisting()" translate>Receive Encrypted</option>
               </select>
               <p ng-if="currentFolder.type == 'sendonly'" translate class="help-block">Files are protected from changes made on other devices, but changes made on this device will be sent to the rest of the cluster.</p>
+              <p ng-if="currentFolder.type == 'drain'" translate class="help-block">Files are sent to other devices like a Send Only folder, then removed from this device once enough connected devices hold them. Removed files are not deleted elsewhere and are never downloaded again.</p>
               <p ng-if="currentFolder.type == 'receiveonly'" translate class="help-block">Files are synchronized from the cluster, but any changes made locally will not be sent to other devices.</p>
               <p ng-if="currentFolder.type == 'receiveencrypted'" translate class="help-block" translate-value-receive-encrypted="{{'Receive Encrypted' | translate}}">Stores and syncs only encrypted data. Folders on all connected devices need to be set up with the same password or be of type "{%receiveEncrypted%}" too.</p>
               <p ng-if="editingFolderExisting() && currentFolder.type == 'receiveencrypted'" translate class="help-block" translate-value-receive-encrypted="{{'Receive Encrypted' | translate}}">Folder type "{%receiveEncrypted%}" cannot be changed after adding the folder. You need to remove the folder, delete or decrypt the data on disk, and add the folder again.</p>
@@ -285,7 +287,7 @@
             </div>
             <div class="col-md-6 form-group">
               <label translate>File Pull Order</label>
-              <select class="form-control" ng-model="currentFolder.order" ng-if="currentFolder.type != 'sendonly'">
+              <select class="form-control" ng-model="currentFolder.order" ng-if="!has(['sendonly', 'drain'], currentFolder.type)">
                 <option value="random" translate>Random</option>
                 <option value="alphabetic" translate>Alphabetic</option>
                 <option value="smallestFirst" translate>Smallest First</option>
@@ -293,12 +295,70 @@
                 <option value="oldestFirst" translate>Oldest First</option>
                 <option value="newestFirst" translate>Newest First</option>
               </select>
-              <select class="form-control" ng-if="currentFolder.type == 'sendonly'" disabled>
+              <select class="form-control" ng-if="has(['sendonly', 'drain'], currentFolder.type)" disabled>
                 <option value="disabled" translate>Disabled</option>
               </select>
-              <p class="help-block" ng-if="currentFolder.type === 'sendonly'" translate translate-value-foldertype="{{'Send Only' | translate}}">
+              <p class="help-block" ng-if="has(['sendonly', 'drain'], currentFolder.type)" translate translate-value-foldertype="{{(currentFolder.type === 'drain' ? 'Drain' : 'Send Only') | translate}}">
                 Cannot be enabled when the folder type is "{%foldertype%}".
               </p>
+            </div>
+          </div>
+
+          <div class="row" ng-if="currentFolder.type == 'drain'">
+            <div class="col-md-6 form-group" ng-class="{'has-error': folderEditor.drainHighWater.$invalid && folderEditor.drainHighWater.$dirty}">
+              <label for="drainHighWater" translate>Drain Above</label><br />
+              <div class="row">
+                <div class="col-xs-9">
+                  <input name="drainHighWater" id="drainHighWater" class="form-control" type="number" ng-model="currentFolder.drainHighWater.value" required="" aria-required="true" min="0" step="0.01" />
+                </div>
+                <div class="col-xs-3">
+                  <select class="form-control" ng-model="currentFolder.drainHighWater.unit">
+                    <option value="%">%</option>
+                    <option value="kB">kB</option>
+                    <option value="MB">MB</option>
+                    <option value="GB">GB</option>
+                    <option value="TB">TB</option>
+                  </select>
+                </div>
+              </div>
+              <p class="help-block" translate>Start removing files once the folder is larger than this. Zero removes every file as soon as it is seeded. Percentages are as part of the total disk size.</p>
+            </div>
+            <div class="col-md-6 form-group" ng-class="{'has-error': folderEditor.drainLowWater.$invalid && folderEditor.drainLowWater.$dirty}">
+              <label for="drainLowWater" translate>Drain Down To</label><br />
+              <div class="row">
+                <div class="col-xs-9">
+                  <input name="drainLowWater" id="drainLowWater" class="form-control" type="number" ng-model="currentFolder.drainLowWater.value" required="" aria-required="true" min="0" step="0.01" />
+                </div>
+                <div class="col-xs-3">
+                  <select class="form-control" ng-model="currentFolder.drainLowWater.unit">
+                    <option value="%">%</option>
+                    <option value="kB">kB</option>
+                    <option value="MB">MB</option>
+                    <option value="GB">GB</option>
+                    <option value="TB">TB</option>
+                  </select>
+                </div>
+              </div>
+              <p class="help-block" translate>Keep removing files until the folder is at or below this size. Values above the drain threshold are capped to it.</p>
+            </div>
+          </div>
+          <div class="row" ng-if="currentFolder.type == 'drain'">
+            <div class="col-md-6 form-group">
+              <label translate>Drain Order</label>
+              <select class="form-control" ng-model="currentFolder.drainOrder">
+                <option value="oldestFirst" translate>Oldest First</option>
+                <option value="newestFirst" translate>Newest First</option>
+                <option value="largestFirst" translate>Largest First</option>
+                <option value="smallestFirst" translate>Smallest First</option>
+                <option value="alphabetic" translate>Alphabetic</option>
+                <option value="random" translate>Random</option>
+              </select>
+              <p class="help-block" translate>Which files to remove first once they are seeded.</p>
+            </div>
+            <div class="col-md-6 form-group" ng-class="{'has-error': folderEditor.drainSeedLevel.$invalid && folderEditor.drainSeedLevel.$dirty}">
+              <label for="drainSeedLevel" translate>Seed Level</label>
+              <input name="drainSeedLevel" id="drainSeedLevel" class="form-control" type="number" ng-model="currentFolder.drainSeedLevel" required="" aria-required="true" min="1" step="1" />
+              <p class="help-block" translate>How many connected devices must hold the current version of a file before it is removed here. Devices with an encryption password don't count.</p>
             </div>
           </div>
 
@@ -343,12 +403,12 @@
                 &nbsp;<a href="{{docsURL('advanced/folder-sync-ownership')}}" target="_blank"><span class="fas fa-question-circle"></span>&nbsp;<span translate>Help</span></a>
               </p>
               <label>
-                <input type="checkbox" ng-disabled="currentFolder.type == 'sendonly' || currentFolder.type == 'receiveencrypted'" ng-model="currentFolder.syncOwnership" /> <span translate>Sync Ownership</span>
+                <input type="checkbox" ng-disabled="has(['sendonly', 'drain', 'receiveencrypted'], currentFolder.type)" ng-model="currentFolder.syncOwnership" /> <span translate>Sync Ownership</span>
               </label>
               <p translate class="help-block">
                 Enables sending ownership information to other devices, and applying incoming ownership information. Typically requires running with elevated privileges.
               </p>
-              <p class="help-block" ng-if="has(['sendonly', 'receiveencrypted'], currentFolder.type)" translate translate-value-foldertype="{{currentFolder.type === 'sendonly' ? ('Send Only' | translate) : currentFolder.type === 'receiveencrypted' ? ('Receive Encrypted' | translate) : ''}}">
+              <p class="help-block" ng-if="has(['sendonly', 'drain', 'receiveencrypted'], currentFolder.type)" translate translate-value-foldertype="{{currentFolder.type === 'sendonly' ? ('Send Only' | translate) : currentFolder.type === 'drain' ? ('Drain' | translate) : currentFolder.type === 'receiveencrypted' ? ('Receive Encrypted' | translate) : ''}}">
                 Cannot be enabled when the folder type is "{%foldertype%}".
               </p>
               <label>
@@ -367,12 +427,12 @@
                 &nbsp;<a href="{{docsURL('advanced/folder-sync-xattrs')}}" target="_blank"><span class="fas fa-question-circle"></span>&nbsp;<span translate>Help</span></a>
               </p>
               <label>
-                <input type="checkbox" ng-disabled="currentFolder.type == 'sendonly' || currentFolder.type == 'receiveencrypted'" ng-model="currentFolder.syncXattrs" /> <span translate>Sync Extended Attributes</span>
+                <input type="checkbox" ng-disabled="has(['sendonly', 'drain', 'receiveencrypted'], currentFolder.type)" ng-model="currentFolder.syncXattrs" /> <span translate>Sync Extended Attributes</span>
               </label>
               <p translate class="help-block">
                 Enables sending extended attributes to other devices, and applying incoming extended attributes. May require running with elevated privileges.
               </p>
-              <p class="help-block" ng-if="has(['sendonly', 'receiveencrypted'], currentFolder.type)" translate translate-value-foldertype="{{currentFolder.type === 'sendonly' ? ('Send Only' | translate) : currentFolder.type === 'receiveencrypted' ? ('Receive Encrypted' | translate) : ''}}">
+              <p class="help-block" ng-if="has(['sendonly', 'drain', 'receiveencrypted'], currentFolder.type)" translate translate-value-foldertype="{{currentFolder.type === 'sendonly' ? ('Send Only' | translate) : currentFolder.type === 'drain' ? ('Drain' | translate) : currentFolder.type === 'receiveencrypted' ? ('Receive Encrypted' | translate) : ''}}">
                 Cannot be enabled when the folder type is "{%foldertype%}".
               </p>
               <label>

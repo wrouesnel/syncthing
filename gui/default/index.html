@@ -394,6 +394,7 @@
                     <div class="panel-icon hidden-xs">
                       <span ng-if="folder.type == 'sendreceive'" class="fas fa-fw fa-folder"></span>
                       <span ng-if="folder.type == 'sendonly'" class="fas fa-fw fa-upload"></span>
+                      <span ng-if="folder.type == 'drain'" class="fas fa-fw fa-sign-out-alt"></span>
                       <span ng-if="folder.type == 'receiveonly'" class="fas fa-fw fa-download"></span>
                       <span ng-if="folder.type == 'receiveencrypted'" class="fas fa-fw fa-lock"></span>
                     </div>
@@ -486,6 +487,18 @@
                             <a href="" ng-click="showFailed(folder.id)">{{model[folder.id].pullErrors | alwaysNumber | localeNumber}}&nbsp;<span translate>items</span></a>
                           </td>
                         </tr>
+                        <tr ng-if="folder.type == 'drain'">
+                          <th><span class="fas fa-fw fa-sign-out-alt"></span>&nbsp;<span translate>Drained Items</span></th>
+                          <td class="text-right">{{model[folder.id].drainedFiles | alwaysNumber | localeNumber}} <span translate>items</span>, ~{{model[folder.id].drainedBytes | binary}}B</td>
+                        </tr>
+                        <tr ng-if="folder.type == 'drain'">
+                          <th><span class="fas fa-fw fa-sliders-h"></span>&nbsp;<span translate>Drain Settings</span></th>
+                          <td class="text-right">
+                            <span ng-if="folder.drainHighWater.value > 0">{{folder.drainHighWater.value}}&nbsp;{{folder.drainHighWater.unit}} &rarr; {{folder.drainLowWater.value}}&nbsp;{{folder.drainLowWater.unit}},</span>
+                            <span ng-if="!(folder.drainHighWater.value > 0)" translate>Drain all,</span>
+                            <span translate translate-value-count="{{folder.drainSeedLevel}}">seed level {%count%}</span>
+                          </td>
+                        </tr>
                         <tr ng-if="hasReceiveOnlyChanged(folder)">
                           <th><span class="fas fa-fw fa-exclamation-circle"></span>&nbsp;<span translate>Locally Changed Items</span></th>
                           <td class="text-right">
@@ -497,6 +510,7 @@
                           <td class="text-right">
                             <span ng-if="folder.type == 'sendreceive'" translate>Send &amp; Receive</span>
                             <span ng-if="folder.type == 'sendonly'" translate>Send Only</span>
+                            <span ng-if="folder.type == 'drain'" translate>Drain</span>
                             <span ng-if="folder.type == 'receiveonly'" translate>Receive Only</span>
                             <span ng-if="folder.type == 'receiveencrypted'" translate>Receive Encrypted</span>
                           </td>
@@ -547,7 +561,7 @@
                             </div>
                           </td>
                         </tr>
-                        <tr ng-if="folder.type != 'sendonly'">
+                        <tr ng-if="folder.type != 'sendonly' && folder.type != 'drain'">
                           <th><span class="fas fa-fw fa-sort"></span>&nbsp;<span translate>File Pull Order</span></th>
                           <td class="text-right" ng-switch="folder.order">
                             <span ng-switch-when="random" translate>Random</span>
@@ -610,7 +624,7 @@
                             <span>{{folderStats[folder.id].lastScan | date:'yyyy-MM-dd HH:mm:ss'}}</span>
                           </td>
                         </tr>
-                        <tr ng-if="folder.type != 'sendonly' && folder.type != 'receiveencrypted' && folderStats[folder.id].lastFile && folderStats[folder.id].lastFile.filename">
+                        <tr ng-if="!has(['sendonly', 'drain', 'receiveencrypted'], folder.type) && folderStats[folder.id].lastFile && folderStats[folder.id].lastFile.filename">
                           <th><span class="fas fa-fw fa-exchange-alt"></span>&nbsp;<span translate>Latest Change</span></th>
                           <td class="text-right">
                             <span tooltip data-original-title="{{folderStats[folder.id].lastFile.filename}} @ {{folderStats[folder.id].lastFile.at | date:'yyyy-MM-dd HH:mm:ss'}}">
@@ -623,7 +637,7 @@
                     </table>
                   </div>
                   <div class="panel-footer">
-                    <button type="button" class="btn btn-sm btn-danger pull-left" ng-click="revertOverrideConfirmationModal('override', folder.id)" ng-if="folderStatus(folder) == 'outofsync' && folder.type == 'sendonly'">
+                    <button type="button" class="btn btn-sm btn-danger pull-left" ng-click="revertOverrideConfirmationModal('override', folder.id)" ng-if="folderStatus(folder) == 'outofsync' && has(['sendonly', 'drain'], folder.type)">
                       <span class="fas fa-arrow-circle-up"></span>&nbsp;<span translate>Override Changes</span>
                     </button>
                     <button type="button" class="btn btn-sm btn-danger pull-left" ng-click="revertOverrideConfirmationModal('revert', folder.id)" ng-if="hasReceiveOnlyChanged(folder) && ['outofsync', 'faileditems', 'localadditions'].indexOf(folderStatus(folder)) >= 0">
